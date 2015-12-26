@@ -1,0 +1,24 @@
+<?php
+
+class DBConnector
+{
+
+public function DBConnector()
+{
+
+}
+
+public function infos()
+{
+$username = "root";
+$sqlpass = "trolololo";
+$servername= "localhost";
+$dbname = "nasilolurdb";
+
+return array($servername,$usernae,$sqlpass,$dbname);
+}
+
+
+}
+
+?>
