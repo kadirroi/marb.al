@@ -1,0 +1,38 @@
+<html>
+
+	<body>
+
+		<canvas id="myCanvas" height="500" width="500"></canvas>
+
+		<script type="text/javascript">
+
+			var canvas = document.getElementById ("myCanvas");
+			
+			initGL (canvas);
+
+			function initGL (canvas){
+				var names = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
+				for (var i=0; i<names.length; i++){
+					try{
+						var gl = canvas.getContext(names[i]);
+					}
+					catch (e){}
+					if (gl)
+						break;
+				}
+
+				if (gl == null){
+					alert ("Could not initialise WebGL");
+					return null;
+				}
+				
+				gl.viewportWidth = canvas.width;
+				gl.viewportHeight = canvas.height;
+				
+			}
+
+		</script>
+
+	</body>
+
+</html>
