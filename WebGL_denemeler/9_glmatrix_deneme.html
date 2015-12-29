@@ -1,0 +1,50 @@
+<html>
+
+	<body>
+
+		<div id="mydiv"></div>
+
+		<script type="text/javascript" src="glmatrix_lib/dist/gl-matrix.js"></script>
+		
+		<script type="text/javascript">
+
+			var div = document.getElementById("mydiv");
+
+			var out1 = vec3.create();
+			var out2 = vec3.create();
+			var out3 = vec3.create();
+
+			var v2 = vec3.fromValues(10, 12, 13);
+			var v3 = vec3.fromValues(2, 3, 4);
+			
+			vec3.cross(out1, v2, v3); // v2*v2 cross product sonucunu out1'e koy
+			div.innerHTML += "v2*v3 = " + vec3.str(out1) + "<br/>";
+
+			vec3.normalize(out2, v2); // v2'yi normalize et ve out2'ye koy
+			div.innerHTML += "norm(v2) = " + vec3.str(out2) + "<br/>";
+
+			var dotResult = vec3.dot(v2,v3);
+			div.innerHTML += "dot product of v2 and v3 = " + dotResult + "<br/>";
+
+			var mat = mat3.create(); // 3x3 id matrisi yaratir
+			var out = mat3.create(); // 3x3 id matrisi yaratir
+			
+			mat3.identity(out); // out matrisini id matrisi yap
+
+			div.innerHTML += "out matrisi = "+ mat3.str(out) + "<br/>";
+			
+			div.innerHTML += "mat matrisinin determinanti = " + mat3.determinant(mat) +	"<br/>";	
+
+			mat3.invert(out,mat);
+
+			div.innerHTML += "mat matrisinin inverti = " + mat3.str(out) + "<br/>";
+
+			mat3.transpose(out,mat);
+	
+			div.innerHTML += "mat matrisinin transpozesi = " + mat3.str(out) + "<br/>";	
+ 
+		</script>		
+		
+	</body>
+
+</html>

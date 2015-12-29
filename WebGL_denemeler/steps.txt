@@ -1,0 +1,9 @@
+Hence, for every WebGL application, the basic program flow would be similar to the following:
+
+    Create the WebGL context
+    Load, compile, link, and attach shaders
+    Initialize vertex buffers and index buffers
+    Apply transform and associate buffer objects to shader attributes
+    Call the drawArrays or drawElements functions
+
+
