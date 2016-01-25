@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Simple Tracker Prototype</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundation/5.5.2/css/foundation.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundicons/3.0.0/foundation-icons.css">  
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/foundation/5.5.2/js/foundation.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.js"></script>
+</head>
+<body>
+<!--
+<nav class="top-bar" data-topbar>
+  <section class="top-bar-section">
+    <ul class="left">
+      <li class="active"><a href="#"><i class="fi-home"></i> Home</a></li>
+      <li><a href="#"><i class="fi-clock"></i>Track!</a></li>     
+      <li><a href="#" style="pointer-events:none;"><i class="fi-torso"></i> You're logged in as blabla</a></li>
+    </ul>
+  </section>
+</nav>
+-->
+<nav class="top-bar" data-topbar>
+  <section class="top-bar-section">
+    <ul class="left">
+      <li><a href="/"><i class="fi-home"></i> Home</a></li>
+      <li class="active"><a href="/signup"><i class="fi-torso"></i> Sign Up</a></li>
+      <li><a href="/login"><i class="fi-foot"></i> Log in</a></li>    
+    </ul>
+  </section>
+</nav>
+<% if session[:user_name]!=nil %>
+	redirect_to "/"
+<% end %>
+<% flash[:error].messages.each {|error| @user.errors.add(error[0], error[1][0]) } if flash[:error] %>
+
+<div class="row">
+
+    <div class="large-6 columns">
+
+      <div class="signup-panel">
+
+        <p class="welcome"> Welcome to Simple Tracker!</p>
+
+        <form id="signupForm" method="POST" action="/users">
+
+          <div class="row collapse">
+
+            <div class="small-2  columns">
+
+              <span class="prefix"><i class="fi-torso-female"></i></span>
+
+            </div>
+
+            <div class="small-10  columns">
+
+              <input name="username" type="text" placeholder="username">
+
+            </div>
+
+          </div>
+
+          <div class="row collapse">
+
+            <div class="small-2 columns">
+
+              <span class="prefix"><i class="fi-mail"></i></span>
+
+            </div>
+
+            <div class="small-10  columns">
+
+              <input name="email" type="text" placeholder="email">
+
+            </div>
+
+          </div>
+
+          <div class="row collapse">
+
+            <div class="small-2 columns ">
+
+              <span class="prefix"><i class="fi-lock"></i></span>
+
+            </div>
+
+            <div class="small-10 columns ">
+
+              <input name="password" type="password" placeholder="password">
+
+            </div>
+
+          </div>
+
+        </form>
+
+        <a id="signupButton" href="#" class="button ">Sign Up! </a>
+
+         <p>Already have an account? <a href="/login">Login here &raquo</a></p>
+
+      </div>
+
+    </div>
+	
+	<% if @user.errors.any? %>
+		<div style="margin-top:5%;" class="large-4 columns alert-box alert radius">
+			<ul>
+				<% @user.errors.full_messages.each do |message| %>
+					<li> <%= message %> </li>
+				<% end %>
+			</ul>
+		<div>
+ <% end %>
+
+   </div>
+
+<style>
+.signup-panel {
+
+  border-radius: 5px;
+
+  border: 1px solid #ccc;
+
+  padding: 15px;
+
+  margin-top: 30px;
+
+}
+
+.signup-panel i {
+
+  font-size: 30px;
+
+  line-height: 50px;
+
+  color: #999;
+
+}
+
+.signup-panel form input, .signup-panel form span {
+
+  height: 50px;
+
+}
+
+.signup-panel .welcome {
+
+  font-size: 26px;
+
+  text-align: center;
+
+  margin-left: 0;
+
+}
+
+.signup-panel p {
+
+  font-size: 13px;
+
+  font-weight: 200;
+
+  margin-left: 25%;
+
+}
+
+.signup-panel .button {
+
+  margin-left: 35%;
+
+}
+
+</style>
+<!-- Initialize Foundation JS -->
+<script>
+$(document).ready(function() {
+    $(document).foundation();
+})
+$('#signupButton').click(function(){
+	$('#signupForm').submit();
+});
+</script>
+
+</body>
+</html>
+
+<!--
+<%= form_for @user do |f| -%>
+	<% if @user.errors.any? %>
+		Errors :
+		<ul>
+			<% @user.errors.full_messages.each do |message| %>
+				<li> <%= message %> </li>
+			<% end %>
+		</ul>
+	<% end %>
+	<p>Username<br/><%= f.text_field :username %> </p> 
+	<p>Email<br/><%= f.text_field :email %> </p>
+	<p>Password<br/><%= f.password_field :password %> </p>
+	<p>Confirm password<br/><%= f.password_field :password_confirmation %> </p>
+	<p><%= f.submit %></p>
+
+<% end -%>
+-->
+
+
