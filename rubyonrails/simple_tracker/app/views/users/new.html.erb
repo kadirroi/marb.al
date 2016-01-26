@@ -27,12 +27,15 @@
     <ul class="left">
       <li><a href="/"><i class="fi-home"></i> Home</a></li>
       <li class="active"><a href="/signup"><i class="fi-torso"></i> Sign Up</a></li>
-      <li><a href="/login"><i class="fi-foot"></i> Log in</a></li>    
+      <li><a href="/login"><i class="fi-foot"></i> Log in</a></li>   
+	 <li><a href="/stats"><i class="fi-graph-bar"></i> Stats</a></li> 
     </ul>
   </section>
 </nav>
 <% if session[:user_name]!=nil %>
-	redirect_to "/"
+  <script type="text/javascript">
+    window.location.href="/"
+  </script>
 <% end %>
 <% flash[:error].messages.each {|error| @user.errors.add(error[0], error[1][0]) } if flash[:error] %>
 

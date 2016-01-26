@@ -21,6 +21,7 @@
     <ul class="left">
       <li><a href="/"><i class="fi-home"></i> Home</a></li>
       <li class="active"><a href="#"><i class="fi-clock"></i>Track!</a></li>     
+	 <li><a href="/stats"><i class="fi-graph-bar"></i> Stats</a></li>
       <li><a href="#" style="pointer-events:none;"><i class="fi-torso"></i> You're logged in as <%= session[:user_name] %></a></li>
     </ul>
   </section>
@@ -173,7 +174,7 @@ $(document).ready(function() {
     	if(second.toString().length == 1) {
         	var second = '0'+second;
     	}   
-    	var dateTime = year+'/'+month+'/'+day+' '+hour+':'+minute+':'+second;   
+    	var dateTime = year+'-'+month+'-'+day+' '+hour+':'+minute+':'+second;   
      	return dateTime;
 	}
 </script>
