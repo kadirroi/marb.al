@@ -1,0 +1,366 @@
+<script src="./js/socket.io.js"></script>
+<script src="./js/cannon.min.js"></script>
+<script src="./js/three.min.js"></script>
+<script src="./js/OBJLoader.js"></script>
+<script src="./js/MTLLoader.js"></script>
+<script src="./js/OBJMTLLoader.js"></script>
+<script src="./js/map/night_arena.js"></script>
+<script src="./js/jsonizer.js"></script>
+<script src="./js/Player.js"></script>
+<script src="./js/IceBeam.js"></script>
+<script src="./js/Grenade.js"></script>
+
+
+<!-- PHYSICS INITIALIZATION -->
+<script>
+
+	var phy_world = new CANNON.World();
+	phy_world.quatNormalizeSkip = 0;
+	phy_world.quatNormalizeFast = false;
+	var phy_solver = new CANNON.GSSolver();
+	phy_world.defaultContactMaterial.contactEquationStiffness = 1e9;
+	phy_world.defaultContactMaterial.contactEquationRelaxation = 4;
+	phy_solver.iterations = 7;
+	phy_solver.tolerance = 0.1;
+	phy_world.solver = new CANNON.SplitSolver(phy_solver);
+	phy_world.gravity.set(0,-900,0);		   
+	phy_world.broadphase = new CANNON.NaiveBroadphase();
+
+</script>
+
+<!-- SCENE INITIALIZATION -->
+<script>
+
+	var scene = new THREE.Scene();
+	var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+	scene.add(camera);
+	var renderer = new THREE.WebGLRenderer({alpha:true});
+	renderer.setClearColor( 0x000000, 0 );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.shadowMapType = THREE.PCFSoftShadowMap;
+	var map = new night_arena();
+	map.initScene(scene, phy_world);
+
+	var grenades = [];
+	var healthPacks = [];
+	var ammos = [];
+	var treats = [];
+
+	var treatTargetTime = 8;
+	var treatID = 0;
+	
+	var heartObject;
+	var ammoObject;
+
+	var loader = new THREE.JSONLoader();
+	loader.load('https://googledrive.com/host/0B2TF8tYSrr7abHdtcEpaLUNCNFE', function(geometry){
+		heartObject = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({color:0xff69b4, transparent:true, opacity:0.6}));
+		heartObject.scale.set(0.03, 0.03, 0.03);
+		// y = 15
+	});
+
+	var loader2 = new THREE.JSONLoader();
+		loader2.load('https://googledrive.com/host/0B2TF8tYSrr7acl9zU3UwUVFVR2s', function(geometry){
+		ammoObject = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({color:0x4b5320, transparent:true, opacity:0.6}));
+		ammoObject.scale.set(3,3,3);
+		// y = 20
+	});
+
+</script>
+
+<!-- SERVER COMMUNICATION -->
+<script>
+
+	var players = []; // AN ARRAY CONTAINS THE PLAYERS (AN INSTANCE OF THE PLAYER CLASS)
+	var removeBodies = []; // TO PREVENT POSSIBLE BUGS, WE REMOVE THE PHY BODIES BEFORE THE SIMULATION
+	var beams = [];	
+
+	var socket = io("http://localhost:80");
+
+	socket.on("connect", function(){
+		waitForTrees(); // THIS ALSO SENDS I_AM_THE_PHYSICS MESSAGE TO THE SERVER
+		
+	});
+	socket.on("start_ticking", function(){
+		tick();
+	});
+	socket.on("who_is_he", function(msg){
+		var json = JSON.parse(msg);
+		var pos = generateRandomPlayerPosition();
+		var new_player = new Player(pos[0],pos[1],pos[2],json.id,json.name);
+		players.push(new_player);
+		console.log("Created a new player : ["+json.name+"]");	
+		var param = positionsToJSON(players);
+		new_param = param.substring(0, param.length - 1);
+		new_param += ',"new":"'+new_player.id+'"';
+		new_param += '}';
+		socket.emit("he_is",new_param);
+	});	
+	socket.on("new_move", function(msg){
+		var json = JSON.parse(msg);
+		var which_id = json.id;
+		var which_key = json.key;
+		var count = json.count;
+		var yawRad = json.yaw;
+		for (var i=0; i<players.length;i++){
+			if (players[i].id == which_id){
+				var player = players[i];
+				if (which_key == "w")
+					player.object.phy_body.applyForce(new CANNON.Vec3(-550*Math.cos(yawRad),0,-550*Math.sin(yawRad)),new CANNON.Vec3(player.object.position.x,player.object.position.y,player.object.position.z));	
+				if (which_key == "s")
+					player.object.phy_body.applyForce(new CANNON.Vec3(550*Math.cos(yawRad),0,550*Math.sin(yawRad)),new CANNON.Vec3(player.object.position.x,player.object.position.y,player.object.position.z));
+				if (which_key == "a")
+					player.object.phy_body.applyForce(new CANNON.Vec3(-550*Math.sin(yawRad),0,550*Math.cos(yawRad)),new CANNON.Vec3(player.object.position.x,player.object.position.y,player.object.position.z));	
+				if (which_key == "d")	
+					player.object.phy_body.applyForce(new CANNON.Vec3(550*Math.sin(yawRad),0,-550*Math.cos(yawRad)),new CANNON.Vec3(player.object.position.x,player.object.position.y,player.object.position.z));	
+				if (which_key =="j")
+					player.object.phy_body.velocity.y = 300;
+				
+				player.lastProcessed = count;	
+			}
+		}
+	});
+	socket.on("new_ice_beam", function(msg){
+		var json = JSON.parse(msg);
+		var from = new THREE.Vector3(json.camx,json.camy,json.camz);
+		var to = new THREE.Vector3(json.dirx,json.diry,json.dirz);
+		beams.push(new IceBeam(from, to , json.id));
+					/*
+					var from = new THREE.Vector3(json.camx,json.camy,json.camz);
+					var to = new THREE.Vector3(json.dirx,json.diry,json.dirz);
+					var raycaster = new THREE.Raycaster(from, to);
+					var intersects = raycaster.intersectObjects(scene.children);
+					if (intersects.length > 0){
+						if (typeof intersects[0].object.phy_body !== 'undefined')
+							if (typeof intersects[0].object.phy_body.health !== 'undefined'){
+								var p = intersects[0].object.phy_body.position;
+								//intersects[0].object.phy_body.applyImpulse(new CANNON.Vec3(300,300,300), p);
+								intersects[0].object.phy_body.health -= 10;
+								if (intersects[0].object.phy_body.health <= 0){
+									deathOf(intersects[0].object.phy_body.id, json.id, 0);
+								}
+								else{
+									var json = '{';
+										json += '"id":"'+intersects[0].object.phy_body.id+'",';
+										json += '"health":'+intersects[0].object.phy_body.health.toString();
+									json += '}';
+									socket.emit("new_ice_beam_shot", json);
+								}				
+							}
+					}	
+					*/
+	});
+	socket.on("new_shotgun", function(msg){
+		var json = JSON.parse(msg);
+
+		for (var i=0; i<players.length; i++)
+			if (players[i].id == json.id)
+				players[i].object.phy_body.applyForce(new CANNON.Vec3(10000*Math.cos(parseFloat(json.yaw)),0,10000*Math.sin(parseFloat(json.yaw))),new CANNON.Vec3	(players[i].object.phy_body.position.x,players[i].object.phy_body.position.y+1,players[i].object.phy_body.position.z));
+
+		var from = new THREE.Vector3(parseFloat(json.camx),parseFloat(json.camy),parseFloat(json.camz));
+		var to = new THREE.Vector3(parseFloat(json.dirx),parseFloat(json.diry),parseFloat(json.dirz));
+		var raycaster = new THREE.Raycaster(from, to, 0, 2000);
+		var intersects = raycaster.intersectObjects(scene.children);
+
+		var forceCounter = 0;
+		if (intersects.length>0){
+			var expJSON = '{"explosion":[';
+			var curintersection = intersects[0];
+			var curintersectionpoint = curintersection.point;
+			var expX = curintersectionpoint.x;
+			var expY = curintersectionpoint.y;
+			var expZ = curintersectionpoint.z;
+			for (var i=0;i<phy_world.bodies.length;i++){
+				var curBody = phy_world.bodies[i];
+				var curPosition = curBody.position;
+				var expPosition = new CANNON.Vec3(expX, expY, expZ);
+				var dist = expPosition.distanceTo(curPosition);
+				if (dist <= 100 ){
+					//curBody.applyImpulse(new CANNON.Vec3(50,50,50),expPosition);
+					curBody.velocity.y += 200;
+					if (typeof curBody.health !== 'undefined') {
+						if (forceCounter == 0)
+							expJSON += '{';
+						else
+							expJSON += ',{';
+							expJSON += '"id":"'+curBody.id+'",';
+							expJSON += '"x":'+expX.toString()+',';
+							expJSON += '"y":'+expY.toString()+',';
+							expJSON += '"z":'+expZ.toString();					
+						expJSON += '}';
+						forceCounter ++;
+						var damage = Math.floor(100 - dist);
+						curBody.health -= damage;
+						if (curBody.health <= 0)	
+							deathOf(curBody.id, json.id, 1);
+					}
+				}				
+			}
+			expJSON += ']}';
+			socket.emit("shotgun_explosion", expJSON);		
+		}
+	});
+	socket.on("a_new_grenade", function(msg){
+		var json = JSON.parse(msg);
+		var pos = new THREE.Vector3(json.px, json.py, json.pz);
+		var dir = new THREE.Vector3(json.dirx, json.diry, json.dirz);
+		var throwerID = json.id;
+		grenades.push(new Grenade(pos, dir, throwerID));
+	});
+	socket.on("a_disconnection", function(msg){
+		var disc_id = JSON.parse(msg).id;
+		var disc_player = false;
+		for (var i=0; i<players.length; i++){
+			if (disc_id == players[i].id){
+				scene.remove(players[i].object);
+				removeBodies.push(players[i].object.phy_body);
+				console.log("["+players[i].name+"] disconnected");
+				disc_player = players[i];
+			}
+		} 
+		if (disc_player != false)
+			players.splice(players.indexOf(disc_player), 1);
+		console.log("Current number of players : "+players.length.toString());
+	});
+
+</script>
+
+<script>
+
+	function tick(){
+		for (var i=0; i<removeBodies.length; i++)
+			phy_world.removeBody(removeBodies[i]);
+		removeBodies = [];
+		phy_world.step(1/60);
+		for (var i=0; i<players.length; i++) players[i].updatePosition();
+		for (var i=0; i<beams.length; i++)  beams[i].render();
+		socket.emit("tick_bitch", positionsToJSON(players));
+		renderer.render(scene, camera);
+	
+		if (phy_world.time >= treatTargetTime && treats.length < 15){
+			generateTreats();
+			treatTargetTime += 8;
+		}
+
+		if (typeof heartObject !=='undefined' && typeof ammoObject !== 'undefined')
+			treatIntersectionCheck();
+
+		requestAnimationFrame(tick);
+	}
+
+	function treatIntersectionCheck(){
+		var spliceIndex = [];
+		for (var i=0; i<players.length; i++){
+			var playerBB = new THREE.Box3().setFromObject(players[i].object);
+			for (var i2=0; i2<treats.length; i2++){
+				var treatBB = new THREE.Box3().setFromObject(treats[i2]);
+				if (treatBB.isIntersectionBox(playerBB)){
+					var params = '{';
+						params += '"treatID":'+treats[i2].treatID.toString()+',';
+						params += '"playerID":"'+players[i].id.toString()+'",';
+						params += '"type":'+treats[i2].type.toString();
+					params += '}';
+					socket.emit("a_new_treat_intersection", params);
+					spliceIndex.push(i2);
+					if (treats[i2].type == 0 && players[i].object.phy_body.health < 100)
+						players[i].object.phy_body.health = 100;
+				}
+			}
+		}
+		for (var i=0; i<spliceIndex.length; i++) treats.splice(spliceIndex[i], 1);
+	};
+
+	function deathOf(victimID, killerID, weapon){ // THE VICTIM IS KILLED BY THE KILLER SO WE CREATE IT AGAIN AND WE INFORM THE SERVER
+		var new_pos = generateRandomPlayerPosition();
+		for (var i=0; i<players.length; i++){
+			if (players[i].id == victimID){
+				players[i].death ++;
+				players[i].object.phy_body.force.set(0,0,0);
+				players[i].object.phy_body.velocity.set(0,0,0);
+				players[i].object.phy_body.angularVelocity.set(0,0,0);
+				players[i].object.phy_body.torque.set(0,0,0);
+				players[i].object.phy_body.position.set(new_pos[0],new_pos[1],new_pos[2]);
+				players[i].object.phy_body.health = 100;
+			}
+
+			if (players[i].id == killerID)
+				players[i].kill ++;
+		}
+
+		var json = '{';
+			json += '"victimID":"'+victimID+'",';
+			json += '"killerID":"'+killerID+'",';
+			json += '"weapon":'+weapon.toString()+',';
+			json += '"new_x":'+new_pos[0].toString()+',';
+			json += '"new_y":'+new_pos[1].toString()+',';
+			json += '"new_z":'+new_pos[2].toString();
+	 	json+= '}';
+		socket.emit("a_death", json); 
+	}
+
+	function generateRandomPlayerPosition(){ // RETURNS AN ARRAY OF A RANDOM GENERATED ELEMENTS : [x,y,z]
+		var rand1 = Math.floor(Math.random() * 10);
+		var rand2 = Math.floor(Math.random() * 10);
+		var rand_x = Math.floor(Math.random() * 1000);
+		var rand_z = Math.floor(Math.random() * 1000);
+		if (rand1 % 2 == 0) rand_x = -1 * rand_x;
+		if (rand2 % 2 == 0) rand_z = -1 * rand_z;
+		return [rand_x,300,rand_z];		
+	}
+
+	function generateTreats(){
+		
+		var pos = generateRandomPlayerPosition();
+		var posX = pos[0];
+		var posZ = pos[2];
+		var posY = 20;
+
+		var choiceFactor = Math.random() * 20;
+		
+		var type = 0;
+		if (choiceFactor > 10) type = 1;
+
+		var params = '{';
+			params += '"type":'+type.toString()+','; // 0 --> healthpack , 1 --> ammo
+			params += '"id":'+treatID.toString()+','
+			params += '"x":'+posX.toString()+',';
+			params += '"y":'+posY.toString()+',';
+			params += '"z":'+posZ.toString();
+		params += '}';
+
+		socket.emit("new_treat", params);
+
+		if (type==0 && typeof heartObject !== 'undefined'){
+			var clone = heartObject.clone();
+			clone.position.set(posX, posY-5, posZ);
+			clone.treatID = treatID;
+			clone.type = 0;
+			treats.push(clone);	
+			console.log("Pushed a new heartObject to treats array");
+		}
+		if (type==1 && typeof ammoObject !== 'undefined'){
+			var clone = ammoObject.clone();
+			clone.position.set(posX, posY, posZ);
+			clone.treatID = treatID;
+			clone.type = 1;
+			treats.push(clone);
+			console.log("Pushed a new ammoObject to treats array");
+		}
+		
+		treatID ++;
+	};
+
+	function waitForTrees(){
+		var trees = [];
+		for (var i=0; i<scene.children.length;i++){
+			if (typeof scene.children[i].isTree !== 'undefined')
+				trees.push(scene.children[i]);
+		}
+		if (trees.length!=70)
+			setTimeout(waitForTrees,500);
+		else{
+			socket.emit("i_am_the_physics",treesToJSON(trees));
+		}	
+	}
+
+</script>
